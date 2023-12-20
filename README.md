@@ -2,7 +2,9 @@
 C++ I/O library test.
 
 For AWS linux server:
+
 install liburing through https://github.com/axboe/liburing.
+
 install spdk through https://github.com/spdk/spdk.
 
 Build
