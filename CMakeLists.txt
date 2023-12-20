@@ -4,7 +4,7 @@ project(iotest)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# SET (CMAKE_CXX_FLAGS "-g -O3 -fopenmp -shared-libgcc -luring")
+SET (CMAKE_CXX_FLAGS "-g -O3 -fopenmp -shared-libgcc -luring")
 
 
 add_executable(gendata generate_data.cc)
@@ -20,4 +20,5 @@ add_executable(aio aio_test.cc)
 target_link_libraries(aio PRIVATE ${RT_LIB})
 
 
-# add_executable(iouring iouring_test.cc)
+add_executable(iouring iouring_test.cc)
+target_link_libraries(iouring uring)
