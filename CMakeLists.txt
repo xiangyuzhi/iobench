@@ -19,6 +19,5 @@ endif()
 add_executable(aio aio_test.cc)
 target_link_libraries(aio PRIVATE ${RT_LIB})
 
-
 add_executable(iouring iouring_test.cc)
 target_link_libraries(iouring uring)

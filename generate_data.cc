@@ -26,12 +26,12 @@ void generateRandomFile(const std::string &filename, std::size_t fileSize) {
 int main(int argc, char *argv[]) {
 
   if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << "<filename> <file_size_in_bytes>"
+    std::cerr << "Usage: " << argv[0] << "<filename> <file_size_in_MB>"
               << std::endl;
   }
 
   const std::string filename = argv[1];
-  const std::size_t fileSize = std::stoull(argv[2]);
+  const std::size_t fileSize = std::stoull(argv[2]) * 1024 * 1024;
 
   generateRandomFile(filename, fileSize);
 

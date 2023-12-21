@@ -1,72 +1,92 @@
 #include <aio.h>
-#include <cstdlib>
-#include <cstring>
+#include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <fstream>
 #include <iostream>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-#define FILE_PATH "testfile.txt"
 #define BUFFER_SIZE 4096
-#define NUM_REQUESTS 10
 
-void aio_completion_handler(sigval sigval) {
-  struct aiocb *aiocbp = static_cast<struct aiocb *>(sigval.sival_ptr);
-
-  if (aio_error(aiocbp) == 0) {
-    // AIO operation completed successfully
-    ssize_t bytesRead = aio_return(aiocbp);
-    std::cout << "Read " << bytesRead << " bytes from file." << std::endl;
-  } else {
-    // AIO operation failed
-    std::cerr << "Error reading from file: " << strerror(aio_error(aiocbp))
-              << std::endl;
-  }
-
-  //   free(aiocbp->aio_buf);
-  free(aiocbp);
+uint64_t time_diff(struct timespec *start, struct timespec *end) {
+  return (end->tv_sec - start->tv_sec) * 1000000000 +
+         (end->tv_nsec - start->tv_nsec);
 }
 
-int main() {
-  int fileDescriptor = open(FILE_PATH, O_RDONLY);
-  if (fileDescriptor == -1) {
-    std::cerr << "Error opening file: " << strerror(errno) << std::endl;
-    return 1;
+void aio(const std::string &file_path, int thread_num) {
+
+  std::ifstream is(file_path, std::ifstream::binary | std::ifstream::ate);
+  std::size_t file_size = is.tellg();
+  is.close();
+
+  int fd = open(file_path.c_str(), O_RDONLY);
+
+  if (fd < 0) {
+    perror("file error\n");
   }
 
-  for (int i = 0; i < NUM_REQUESTS; ++i) {
-    // Allocate buffer for AIO read
-    char *buffer = static_cast<char *>(malloc(BUFFER_SIZE));
+  struct aiocb rd[thread_num];
+  char *buf = (char *)aligned_alloc(BUFFER_SIZE, file_size);
 
-    // Create aiocb structure
-    struct aiocb *aiocbp =
-        static_cast<struct aiocb *>(malloc(sizeof(struct aiocb)));
-    memset(aiocbp, 0, sizeof(struct aiocb));
+  off_t per_thd_len = file_size / thread_num;
+  for (int i = 0; i < thread_num; i++) {
+    bzero(&rd[i], sizeof(struct aiocb));
+    rd[i].aio_buf = malloc(BUFFER_SIZE + 1);
+    rd[i].aio_fildes = fd;
+    rd[i].aio_nbytes = BUFFER_SIZE;
+    rd[i].aio_offset = i * per_thd_len;
+  }
+  off_t cnt_read[thread_num];
 
-    aiocbp->aio_fildes = fileDescriptor;
-    aiocbp->aio_buf = buffer;
-    aiocbp->aio_nbytes = BUFFER_SIZE;
-    aiocbp->aio_offset = i * BUFFER_SIZE;
+  struct timespec start, end;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-    // Set up signal handler
-    aiocbp->aio_sigevent.sigev_notify = SIGEV_THREAD;
-    aiocbp->aio_sigevent.sigev_notify_function = aio_completion_handler;
-    aiocbp->aio_sigevent.sigev_value.sival_ptr = aiocbp;
+#pragma omp parallel for num_threads(thread_num)
+  for (int i = 0; i < thread_num; i++) {
+    cnt_read[i] = 0;
+    do {
+      auto ret = aio_read(&rd[i]);
 
-    // Start asynchronous read
-    if (aio_read(aiocbp) == -1) {
-      std::cerr << "Error starting asynchronous read: " << strerror(errno)
-                << std::endl;
-      free(buffer);
-      free(aiocbp);
-      break;
-    }
+      if (ret < 0) {
+        perror("aio_read");
+        exit(1);
+      }
+
+      while (aio_error(&rd[i]) == EINPROGRESS)
+        ;
+      ret = aio_return(&rd[i]);
+      memcpy(buf + i * per_thd_len + cnt_read[i], (char *)rd[i].aio_buf, ret);
+      rd[i].aio_offset += ret;
+      cnt_read[i] += ret;
+
+    } while (cnt_read[i] < per_thd_len);
+    printf("thread %d read %ld MB\n", i, cnt_read[i] / 1024 / 1024);
+  }
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  auto duration = time_diff(&start, &end) / 1000000.0;
+  auto bandwidth = (file_size / (1024.0 * 1024.0 * 1024.0)) / (duration / 1000);
+  uint64_t *array = (uint64_t *)buf;
+  uint64_t sum = 0;
+  for (int i = 0; i < file_size / sizeof(uint64_t); ++i) {
+    sum += array[i];
+  }
+  printf("%lu, %fms, %fGB/s\n", sum, duration, bandwidth);
+}
+
+int main(int argc, char *argv[]) {
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << "<filename> <thread_num>" << std::endl;
   }
 
-  // Sleep to allow asynchronous reads to complete
-  sleep(2);
+  const std::string filename = argv[1];
+  int t = atoi(argv[2]);
 
-  // Close the file
-  close(fileDescriptor);
-
-  return 0;
+  aio(filename, t);
 }

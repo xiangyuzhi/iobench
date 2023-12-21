@@ -20,20 +20,33 @@ Generate data on disk:
 
 ```
 mkdir data
-./build/gendata ./data/file_1MB.bin 1048576
-./build/gendata ./data/file_512MB.bin 536870912
-stat ./data/file_1MB.bin
-stat ./data/file_512MB.bin
+cd build
+./gendata ../data/file_128MB.bin 128
+./gendata ../data/file_512MB.bin 512
+./gendata ../data/file_1GB.bin 1024
+stat ../data/file_128MB.bin
+stat ../data/file_512MB.bin
+stat ../data/file_1GB.bin
 ```
 
 Test pread:
 ```
-./build/pread ./data/file_1MB.bin 1
-./build/pread ./data/file_512MB.bin 1
+./pread ../data/file_128MB.bin 1
+./pread ../data/file_512MB.bin 1
 ```
 
 
 Test aio:
+```
+./aio ../data/file_128MB.bin 1
+./aio ../data/file_128MB.bin 4
+```
+
+Expect output:
+```
+8373570978799532707, 693.795523ms, 0.180168GB/s
+8373570978799532707, 366.275577ms, 0.341273GB/s
+```
 
 
 Test io_uring:
