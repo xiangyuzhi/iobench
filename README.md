@@ -44,9 +44,16 @@ Usage: $ ./pread <file> <thread_num>
 Test pread:
 ```
 ./pread ../data/file_128MB.bin 1
-./pread ../data/file_512MB.bin 1
+./pread ../data/file_128MB.bin 4
+./pread ../data/file_128MB.bin 8
 ```
 
+Expect output:
+```
+148511787354331535, 103.839903ms, 1.203776GB/s
+148511787354331535, 23.065304ms, 5.419395GB/s
+148511787354331535, 15.298945ms, 8.170498GB/s
+```
 
 Test aio:
 ```
@@ -56,8 +63,8 @@ Test aio:
 
 Expect output:
 ```
-148511787354331535, 693.795523ms, 0.180168GB/s
-148511787354331535, 366.275577ms, 0.341273GB/s
+148511787354331535, 65.604999ms, 1.905343GB/s
+148511787354331535, 67.069362ms, 1.863742GB/s
 ```
 
 

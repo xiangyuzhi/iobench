@@ -38,9 +38,9 @@ void aio(const std::string &file_path, int thread_num) {
   off_t per_thd_len = file_size / thread_num;
   for (int i = 0; i < thread_num; i++) {
     bzero(&rd[i], sizeof(struct aiocb));
-    rd[i].aio_buf = malloc(BUFFER_SIZE + 1);
+    rd[i].aio_buf = buf + i * per_thd_len;
     rd[i].aio_fildes = fd;
-    rd[i].aio_nbytes = BUFFER_SIZE;
+    rd[i].aio_nbytes = per_thd_len;
     rd[i].aio_offset = i * per_thd_len;
   }
   off_t cnt_read[thread_num];
@@ -62,7 +62,8 @@ void aio(const std::string &file_path, int thread_num) {
       while (aio_error(&rd[i]) == EINPROGRESS)
         ;
       ret = aio_return(&rd[i]);
-      memcpy(buf + i * per_thd_len + cnt_read[i], (char *)rd[i].aio_buf, ret);
+      // memcpy(buf + i * per_thd_len + cnt_read[i], (char *)rd[i].aio_buf,
+      // ret);
       rd[i].aio_offset += ret;
       cnt_read[i] += ret;
 
