@@ -75,7 +75,7 @@ void aio(const std::string &file_path, int thread_num) {
   uint64_t *array = (uint64_t *)buf;
   uint64_t sum = 0;
   for (int i = 0; i < file_size / sizeof(uint64_t); ++i) {
-    sum += array[i];
+    sum ^= array[i];
   }
   printf("%lu, %fms, %fGB/s\n", sum, duration, bandwidth);
 }

@@ -2,75 +2,108 @@
 #include <fcntl.h>
 #include <iostream>
 #include <liburing.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <vector>
 
-#define FILE_SIZE (1024 * 1024 * 100) // 100 MB
+#define FILE_PATH "../data/file_128MB.bin"
+#define BUFFER_SIZE 4096
 
-void io_uring_error(int ret, const char *msg) {
-  std::cerr << msg << ": " << strerror(-ret) << std::endl;
-  exit(1);
+uint64_t time_diff(struct timespec *start, struct timespec *end) {
+  return (end->tv_sec - start->tv_sec) * 1000000000 +
+         (end->tv_nsec - start->tv_nsec);
 }
 
-void io_uring_write_test(const std::string &filename, std::size_t fileSize) {
-  io_uring ring;
-  io_uring_queue_init(16, &ring, 0);
+struct IoContext {
+  int fd;
+  char *buffer;
+  struct io_uring ring;
+};
 
-  int file =
-      open(filename.c_str(), O_CREAT | O_WRONLY | O_DIRECT | O_TRUNC, 0666);
-  if (file < 0) {
-    std::cerr << "Error opening file for writing: " << strerror(errno)
-              << std::endl;
-    exit(1);
+void io_uring(const std::string &file_path, int thread_num) {
+  int fd = open(FILE_PATH, O_RDONLY);
+  if (fd == -1) {
+    perror("open");
+    return;
   }
 
-  char *data = static_cast<char *>(aligned_alloc(512, fileSize));
-  if (!data) {
-    std::cerr << "Error allocating memory for data" << std::endl;
-    close(file);
-    exit(1);
+  struct IoContext ioContext;
+  ioContext.fd = fd;
+  char *buffer = (char *)malloc(BUFFER_SIZE);
+
+  if (io_uring_queue_init(thread_num, &ioContext.ring, 0) < 0) {
+    perror("io_uring_queue_init");
+    close(fd);
+    free(buffer);
+    return;
   }
 
-  std::vector<io_uring_sqe *> sqes;
+  off_t file_size = lseek(fd, 0, SEEK_END);
+  off_t offset = 0;
+  char *buf = (char *)aligned_alloc(BUFFER_SIZE, file_size);
 
-  // Populate the submission queue with write operations
-  for (off_t offset = 0; offset < fileSize; offset += 4096) {
-    io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+  struct timespec start, end;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
+  while (offset < file_size) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(&ioContext.ring);
     if (!sqe) {
-      io_uring_submit(&ring);
-      sqe = io_uring_get_sqe(&ring);
+      perror("io_uring_get_sqe");
+      break;
     }
 
-    io_uring_prep_write(sqe, file, data + offset, 4096, offset);
-    sqes.push_back(sqe);
+    // Set up read operation
+    io_uring_prep_read(sqe, fd, buf + offset, BUFFER_SIZE, offset);
+    io_uring_sqe_set_data(sqe, (void *)(buf + offset));
+
+    // Set up callback
+    io_uring_sqe_set_flags(sqe, IOSQE_IO_LINK);
+    io_uring_sqe_set_data(sqe, (void *)(buf + offset));
+
+    // Submit the read operation
+    io_uring_submit(&ioContext.ring);
+
+    offset += BUFFER_SIZE;
   }
 
-  // Submit the operations
-  io_uring_submit(&ring);
-
-  // Wait for completion
-  for (auto *sqe : sqes) {
-    io_uring_cqe *cqe;
-    io_uring_wait_cqe(&ring, &cqe);
-
-    if (cqe->res < 0) {
-      io_uring_error(cqe->res, "Write error");
+  // Wait for completions
+  for (off_t i = 0; i < file_size / BUFFER_SIZE; ++i) {
+    struct io_uring_cqe *cqe;
+    if (io_uring_wait_cqe(&ioContext.ring, &cqe) < 0) {
+      perror("io_uring_wait_cqe");
+      break;
     }
 
-    io_uring_cqe_seen(&ring, cqe);
+    // Handle completion
+    io_uring_cqe_seen(&ioContext.ring, cqe);
   }
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  auto duration = time_diff(&start, &end) / 1000000.0;
+  auto bandwidth = (file_size / (1024.0 * 1024.0 * 1024.0)) / (duration / 1000);
 
-  free(data);
-  close(file);
-  io_uring_queue_exit(&ring);
+  uint64_t *array = (uint64_t *)buf;
+  uint64_t sum = 0;
+  for (int i = 0; i < file_size / sizeof(uint64_t); ++i) {
+    sum ^= array[i];
+  }
+  printf("%lu, %fms, %fGB/s\n", sum, duration, bandwidth);
+  // Clean up resources
+  close(fd);
+  io_uring_queue_exit(&ioContext.ring);
+  free(buffer);
 }
 
-int main() {
-  const std::string filename = "testfile";
-  io_uring_write_test(filename, FILE_SIZE);
+int main(int argc, char *argv[]) {
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << "<filename> <thread_num>" << std::endl;
+  }
 
-  std::cout << "Write test completed." << std::endl;
+  const std::string filename = argv[1];
+  int t = atoi(argv[2]);
+
+  io_uring(filename, t);
 
   return 0;
 }
