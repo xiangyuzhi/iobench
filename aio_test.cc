@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define BUFFER_SIZE 4096 << 1
+#define BUFFER_SIZE 4096
 
 uint64_t time_diff(struct timespec *start, struct timespec *end) {
   return (end->tv_sec - start->tv_sec) * 1000000000 +
@@ -34,10 +34,11 @@ void aio(const std::string &file_path, int thread_num) {
 
   char *buf = (char *)aligned_alloc(BUFFER_SIZE, file_size);
 
-  size_t block_size = BUFFER_SIZE * thread_num;
-  auto num_blocks = static_cast<int>((file_size + block_size - 1) / block_size);
-  std::cout << block_size / 1024 << "KB " << block_size / (1024 * 1024) << "MB"
-            << std::endl;
+  // size_t block_size = BUFFER_SIZE * thread_num;
+  // auto num_blocks = static_cast<int>((file_size + block_size - 1) /
+  // block_size); std::cout << block_size / 1024 << "KB " << block_size / (1024
+  // * 1024) << "MB"
+  //           << std::endl;
 
   off_t per_thd_len = file_size / thread_num;
   struct timespec start, end;

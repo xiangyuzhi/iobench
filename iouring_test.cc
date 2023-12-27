@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <vector>
 
-#define FILE_PATH "../data/file_128MB.bin"
 #define BUFFER_SIZE 4096
 
 uint64_t time_diff(struct timespec *start, struct timespec *end) {
@@ -23,7 +22,7 @@ struct IoContext {
 };
 
 void io_uring(const std::string &file_path, int thread_num) {
-  int fd = open(FILE_PATH, O_RDONLY);
+  int fd = open(file_path.c_str(), O_RDONLY);
   if (fd == -1) {
     perror("open");
     return;
