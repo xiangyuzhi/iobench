@@ -21,3 +21,13 @@ target_link_libraries(aio PRIVATE ${RT_LIB})
 
 add_executable(iouring iouring_test.cc)
 target_link_libraries(iouring uring)
+
+# include_directories(../spdk/include)
+
+# add_executable(spdk spdk_test.cc)
+# target_link_libraries(spdk
+#     -lspdk
+#     -lspdk_env_dpdk
+#     -lspdk_event
+#     -lspdk_trace
+# )

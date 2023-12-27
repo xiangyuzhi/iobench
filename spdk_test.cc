@@ -1,122 +1,96 @@
+#include <spdk/blob.h>
 #include <spdk/env.h>
-#include <spdk/nvme.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define NVME_NSID 1
-#define BUFFER_SIZE (4096 * 4) // 4 KB
+#define FILE_PATH "sample.txt"
+#define PAGE_SIZE 4096
 
-struct nvme_read_ctx {
-  spdk_nvme_qpair *qpair;
-  char *buffer;
+struct spdk_file_io_ctx {
+  FILE *file;
+  struct spdk_blob *blob;
+  char *read_buffer;
 };
 
-static void read_complete(void *arg, const struct spdk_nvme_cpl *completion);
+static void read_complete(void *arg, int bserrno) {
+  struct spdk_file_io_ctx *io_ctx = arg;
 
-static void read_data(struct nvme_read_ctx *ctx, uint64_t lba,
-                      uint32_t lba_count) {
-  spdk_nvme_ns_cmd_read(ctx->qpair, ctx->buffer, lba, lba_count, read_complete,
-                        ctx, 0);
-}
-
-static void read_complete(void *arg, const struct spdk_nvme_cpl *completion) {
-  struct nvme_read_ctx *ctx = (struct nvme_read_ctx *)arg;
-
-  if (spdk_nvme_cpl_is_error(completion)) {
-    fprintf(stderr, "NVMe read error: SC %x\n",
-            spdk_nvme_cpl_get_status_code(completion));
-    spdk_nvme_qpair_abort_reqs(ctx->qpair, 0);
-    spdk_nvme_ctrlr_free_io_qpair(ctx->qpair);
-    spdk_free(ctx->buffer);
-    spdk_nvme_detach(spdk_nvme_ns_get_ctrlr(spdk_nvme_ns_list_get_first()));
-    spdk_nvme_cleanup();
-    exit(EXIT_FAILURE);
+  if (bserrno != 0) {
+    fprintf(stderr, "Async read failed: %s\n", spdk_strerror(-bserrno));
+  } else {
+    // Process or use the read data
+    printf("Read data: %s\n", io_ctx->read_buffer);
   }
 
-  // Process the read data as needed
-  // ...
+  // Stop the SPDK application
+  spdk_app_stop(bserrno);
+}
 
-  // Clean up resources
-  spdk_nvme_qpair_abort_reqs(ctx->qpair, 0);
-  spdk_nvme_ctrlr_free_io_qpair(ctx->qpair);
-  spdk_free(ctx->buffer);
-  spdk_nvme_detach(spdk_nvme_ns_get_ctrlr(spdk_nvme_ns_list_get_first()));
-  spdk_nvme_cleanup();
+static void read_file(void *arg1, void *arg2) {
+  struct spdk_file_io_ctx *io_ctx = arg1;
 
-  exit(EXIT_SUCCESS);
+  // Submit an asynchronous read
+  spdk_blob_io_read(io_ctx->blob, io_ctx->read_buffer, 0, PAGE_SIZE,
+                    read_complete, io_ctx);
+}
+
+static void initialize_blob(void *arg1, void *arg2) {
+  struct spdk_file_io_ctx *io_ctx = arg1;
+
+  // Create a blob for reading
+  io_ctx->blob = spdk_blob_open(io_ctx->file);
+  if (io_ctx->blob == NULL) {
+    fprintf(stderr, "Failed to open blob.\n");
+    spdk_app_stop(-1);
+    return;
+  }
+
+  // Allocate buffer for reading
+  io_ctx->read_buffer = malloc(PAGE_SIZE);
+  if (io_ctx->read_buffer == NULL) {
+    fprintf(stderr, "Failed to allocate buffer.\n");
+    spdk_app_stop(-1);
+    return;
+  }
+
+  // Send a message to initialize the read operation
+  spdk_thread_send_msg(spdk_get_thread(), read_file, io_ctx);
+}
+
+static void initialize_file(void *arg1, void *arg2) {
+  struct spdk_file_io_ctx *io_ctx = arg1;
+
+  // Open the file
+  io_ctx->file = fopen(FILE_PATH, "r");
+  if (io_ctx->file == NULL) {
+    fprintf(stderr, "Failed to open file: %s\n", FILE_PATH);
+    spdk_app_stop(-1);
+    return;
+  }
+
+  // Send a message to initialize the blob and read data
+  spdk_thread_send_msg(spdk_get_thread(), initialize_blob, io_ctx);
 }
 
 int main() {
-  struct nvme_read_ctx ctx = {0};
-  uint64_t lba = 0;       // Starting Logical Block Address
-  uint32_t lba_count = 8; // Number of Logical Blocks to read
+  struct spdk_file_io_ctx io_ctx = {};
 
-  // Initialize SPDK environment
   if (spdk_env_init(NULL) < 0) {
-    fprintf(stderr, "Unable to initialize SPDK environment\n");
+    fprintf(stderr, "Unable to initialize SPDK env\n");
     return EXIT_FAILURE;
   }
 
-  // Initialize NVMe subsystem
-  if (spdk_nvme_init() < 0) {
-    fprintf(stderr, "Unable to initialize NVMe\n");
-    spdk_env_cleanup();
-    return EXIT_FAILURE;
-  }
+  // Send a message to initialize the file
+  spdk_thread_send_msg(spdk_get_thread(), initialize_file, &io_ctx);
 
-  // Enumerate NVMe controllers
-  if (spdk_nvme_probe(NULL, NULL, NULL, NULL) != 0) {
-    fprintf(stderr, "No NVMe controllers found\n");
-    spdk_nvme_cleanup();
-    spdk_env_cleanup();
-    return EXIT_FAILURE;
-  }
+  // Run the SPDK event loop
+  spdk_app_start(NULL, NULL, NULL);
 
-  // Attach to the first NVMe controller
-  if (spdk_nvme_attach(spdk_nvme_probe(NULL, NULL, NULL, NULL)) != 0) {
-    fprintf(stderr, "Failed to attach to NVMe controller\n");
-    spdk_nvme_cleanup();
-    spdk_env_cleanup();
-    return EXIT_FAILURE;
-  }
-
-  // Get the first NVMe namespace
-  struct spdk_nvme_ns *ns =
-      spdk_nvme_ctrlr_get_ns(spdk_nvme_ns_list_get_first(), NVME_NSID);
-  if (!ns) {
-    fprintf(stderr, "No NVMe namespace found\n");
-    spdk_nvme_cleanup();
-    spdk_env_cleanup();
-    return EXIT_FAILURE;
-  }
-
-  // Allocate buffer for read data
-  ctx.buffer = spdk_zmalloc(BUFFER_SIZE, 0, NULL, SPDK_ENV_LCORE_ID_ANY,
-                            SPDK_MALLOC_DMA);
-  if (!ctx.buffer) {
-    fprintf(stderr, "Failed to allocate buffer for read data\n");
-    spdk_nvme_cleanup();
-    spdk_env_cleanup();
-    return EXIT_FAILURE;
-  }
-
-  // Create I/O queue pair
-  ctx.qpair =
-      spdk_nvme_ctrlr_alloc_io_qpair(spdk_nvme_ns_get_ctrlr(ns), NULL, 0);
-  if (!ctx.qpair) {
-    fprintf(stderr, "Failed to create I/O queue pair\n");
-    spdk_free(ctx.buffer);
-    spdk_nvme_cleanup();
-    spdk_env_cleanup();
-    return EXIT_FAILURE;
-  }
-
-  // Perform asynchronous read
-  read_data(&ctx, lba, lba_count);
-
-  // Start the SPDK event loop
-  spdk_env_run();
+  // Clean up resources
+  free(io_ctx.read_buffer);
+  fclose(io_ctx.file);
+  spdk_env_cleanup();
 
   return EXIT_SUCCESS;
 }

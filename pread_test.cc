@@ -7,21 +7,22 @@
 #include <time.h>
 #include <unistd.h>
 
-#define ALIGNMENT 4096
+// #define ALIGNMENT 4096 << 1
 
 uint64_t time_diff(struct timespec *start, struct timespec *end) {
   return (end->tv_sec - start->tv_sec) * 1000000000 +
          (end->tv_nsec - start->tv_nsec);
 }
 
-void test_pread_openmp(int thread_num, const std::string &file_path) {
+void test_pread_openmp(int thread_num, uint32_t alignment,
+                       const std::string &file_path) {
   std::ifstream is(file_path, std::ifstream::binary | std::ifstream::ate);
   std::size_t file_size = is.tellg();
   is.close();
 
   int fd = open(file_path.c_str(), O_RDONLY);
 
-  size_t block_size = ALIGNMENT * thread_num;
+  size_t block_size = alignment * thread_num;
   char *buf = (char *)malloc(file_size);
   auto num_blocks = static_cast<int>((file_size + block_size - 1) / block_size);
   std::cout << block_size / 1024 << "KB " << block_size / (1024 * 1024) << "MB"
@@ -47,12 +48,13 @@ void test_pread_openmp(int thread_num, const std::string &file_path) {
   for (int i = 0; i < file_size / sizeof(uint64_t); ++i) {
     sum ^= array[i];
   }
-  printf("%lu, %fms, %fGB/s\n", sum, duration, bandwidth);
+  printf("%lu, %.3fms, %.3fGB/s\n", sum, duration, bandwidth);
   free(buf);
   close(fd);
 }
 
-void test_pread_direct_openmp_randread(int i, const std::string &file_path) {
+void test_pread_direct_openmp_randread(int thread_num, uint32_t alignment,
+                                       const std::string &file_path) {
   std::ifstream is(file_path, std::ifstream::binary | std::ifstream::ate);
   std::size_t file_size = is.tellg();
   is.close();
@@ -60,9 +62,9 @@ void test_pread_direct_openmp_randread(int i, const std::string &file_path) {
   int fd = open(file_path.c_str(), O_RDONLY | O_DIRECT);
 
   int num_read = 2000;
-  size_t block_size = ALIGNMENT * i;
+  size_t block_size = alignment * thread_num;
   size_t buf_size = block_size * num_read;
-  char *buf = (char *)aligned_alloc(ALIGNMENT, buf_size);
+  char *buf = (char *)aligned_alloc(alignment, buf_size);
   std::cout << block_size / 1024 << "KB " << block_size / (1024 * 1024) << "MB"
             << std::endl;
   auto num_blocks = file_size / block_size;
@@ -97,10 +99,12 @@ void test_pread_direct_openmp_randread(int i, const std::string &file_path) {
 
 int main(int argc, char *argv[]) {
 
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << "<filename> <thread_num>" << std::endl;
+  if (argc != 4) {
+    std::cerr << "Usage: " << argv[0]
+              << "<filename> <thread_num> <block_size KB>" << std::endl;
   }
   const std::string filename = argv[1];
   int t = atoi(argv[2]);
-  test_pread_openmp(t, filename);
+  int block = atoi(argv[3]) * 1024;
+  test_pread_openmp(t, block, filename);
 }

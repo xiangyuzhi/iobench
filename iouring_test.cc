@@ -88,7 +88,7 @@ void io_uring(const std::string &file_path, int thread_num) {
   for (int i = 0; i < file_size / sizeof(uint64_t); ++i) {
     sum ^= array[i];
   }
-  printf("%lu, %fms, %fGB/s\n", sum, duration, bandwidth);
+  printf("%lu, %.3fms, %.3fGB/s\n", sum, duration, bandwidth);
   // Clean up resources
   close(fd);
   io_uring_queue_exit(&ioContext.ring);
