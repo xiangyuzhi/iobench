@@ -8,7 +8,7 @@ Test Disk IO Libraries:
 - spdk
 
 ## Report
-[C++ Library Benchmark Report](https://quip-amazon.com/Nz0GABxvGipG/Methods-to-Saturate-the-Full-Bandwidth-of-NVMe-SSD)
+[C++ Disk I/O Library Benchmark Report](https://quip-amazon.com/Nz0GABxvGipG/Methods-to-Saturate-the-Full-Bandwidth-of-NVMe-SSD)
 
 ## For AWS linux server
 
@@ -47,7 +47,7 @@ stat /data/file_1GB.bin
 Use fio to test and verify your SSD bandwidth:
 ```bash
 sudo apt install fio
-fio -ioengine=libaio -bs=16k -direct=1 -thread -numjobs=1 -rw=read -filename=/data/file_1GB.bin -name="BS 16KB read test" -iodepth=512 -runtime=20
+fio -ioengine=libaio -bs=4k -direct=1 -thread -numjobs=1 -rw=read -filename=/data/file_1GB.bin -name="BS 16KB read test" -iodepth=512 -runtime=20
 fio -ioengine=libaio -bs=64k -direct=1 -thread -numjobs=1 -rw=read -filename=/data/file_1GB.bin -name="BS 64KB read test" -iodepth=512 -runtime=20
 fio -ioengine=libaio -bs=64k -direct=1 -thread -numjobs=8 -rw=read -filename=/data/file_1GB.bin -name="BS 64KB read test" -iodepth=512 -runtime=20
 ```
@@ -55,7 +55,7 @@ The bandwidth should between 2000-3500 MB/s.
 
 ## Usage
 ```
-$ ./<lib> <file> <thread_num> <block size>
+$ ./<lib> <file> <is_random_read> <thread_num> <block size>
 ```
 
 Or run the script:
@@ -66,9 +66,11 @@ bash ./test.sh
 
 ### Test pread:
 ```bash
-./pread /data/file_1GB.bin 1 16
-./pread /data/file_1GB.bin 8 16
-./pread /data/file_1GB.bin 8 64
+./pread /data/file_1GB.bin 0 1 16
+./pread /data/file_1GB.bin 0 8 16
+./pread /data/file_1GB.bin 0 8 64
+./pread /data/file_1GB.bin 1 8 16
+./pread /data/file_1GB.bin 1 8 64
 ```
 
 Expect output:
