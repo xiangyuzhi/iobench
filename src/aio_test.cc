@@ -62,7 +62,7 @@ void aio(const std::string &file_path, int thread_num) {
       cnt_read += ret;
 
     } while (cnt_read < per_thd_len);
-    printf("thread %d read %ld MB\n", i, cnt_read / 1024 / 1024);
+    //printf("thread %d read %ld MB\n", i, cnt_read / 1024 / 1024);
   }
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   auto duration = time_diff(&start, &end) / 1000000.0;

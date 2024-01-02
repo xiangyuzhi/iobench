@@ -50,13 +50,13 @@ void test_pread_openmp(int thread_num, uint32_t alignment,
   for (int i = 0; i < file_size / sizeof(uint64_t); ++i) {
     sum ^= array[i];
   }
-  printf("%lu, %fms, %fGB/s\n", sum, duration, bandwidth);
+  printf("%lu, %.3fms, %.3fGB/s\n", sum, duration, bandwidth);
   free(buf);
   close(fd);
 }
 
-void test_pread_direct_openmp_randread(int thread_num, uint32_t alignment,
-                                       const std::string &file_path) {
+void test_pread_randread(int thread_num, uint32_t alignment,
+                         const std::string &file_path) {
   std::ifstream is(file_path, std::ifstream::binary | std::ifstream::ate);
   std::size_t file_size = is.tellg();
   is.close();
@@ -94,7 +94,7 @@ void test_pread_direct_openmp_randread(int thread_num, uint32_t alignment,
   for (int i = 0; i < buf_size / sizeof(uint64_t); ++i) {
     sum ^= array[i];
   }
-  printf("%lu, %fms, %fGB/s\n", sum, duration, bandwidth);
+  printf("%lu, %.3fms, %.3fGB/s\n", sum, duration, bandwidth);
   free(buf);
   close(fd);
 }
