@@ -7,19 +7,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET (CMAKE_CXX_FLAGS "-g -O3 -fopenmp -shared-libgcc -luring")
 
 
-add_executable(gendata generate_data.cc)
+add_executable(gendata src/generate_data.cc)
 
-add_executable(pread pread_test.cc)
+add_executable(pread src/pread_test.cc)
 
 find_library(RT_LIB rt)
 if (NOT RT_LIB)
     message(FATAL_ERROR "librt not found")
 endif()
 
-add_executable(aio aio_test.cc)
+add_executable(aio src/aio_test.cc)
 target_link_libraries(aio PRIVATE ${RT_LIB})
 
-add_executable(iouring iouring_test.cc)
+add_executable(iouring src/iouring_test.cc)
 target_link_libraries(iouring uring)
 
 # include_directories(../spdk/include)

@@ -43,9 +43,9 @@ Usage: $ ./pread <file> <thread_num>
 
 Test pread:
 ```
-./pread ../data/file_128MB.bin 1
-./pread ../data/file_128MB.bin 4
-./pread ../data/file_128MB.bin 8
+./pread ../data/file_128MB.bin 1 16
+./pread ../data/file_128MB.bin 4 16
+./pread ../data/file_128MB.bin 8 16
 ```
 
 Expect output:
@@ -82,4 +82,3 @@ Expect output:
 
 
 Test spdk:
-

@@ -26,7 +26,7 @@ void aio(const std::string &file_path, int thread_num) {
   std::size_t file_size = is.tellg();
   is.close();
 
-  int fd = open(file_path.c_str(), O_RDONLY);
+  int fd = open(file_path.c_str(), O_RDONLY | O_DIRECT);
 
   if (fd < 0) {
     perror("file error\n");
@@ -34,38 +34,9 @@ void aio(const std::string &file_path, int thread_num) {
 
   char *buf = (char *)aligned_alloc(BUFFER_SIZE, file_size);
 
-  // size_t block_size = BUFFER_SIZE * thread_num;
-  // auto num_blocks = static_cast<int>((file_size + block_size - 1) /
-  // block_size); std::cout << block_size / 1024 << "KB " << block_size / (1024
-  // * 1024) << "MB"
-  //           << std::endl;
-
   off_t per_thd_len = file_size / thread_num;
   struct timespec start, end;
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-
-  // #pragma omp parallel for num_threads(thread_num)
-  //   for (int i = 0; i < num_blocks; ++i) {
-  //     size_t read_size =
-  //         i == (num_blocks - 1) ? file_size - i * block_size : block_size;
-  //     struct aiocb rd;
-  //     bzero(&rd, sizeof(struct aiocb));
-  //     rd.aio_buf = buf + i * block_size;
-  //     rd.aio_fildes = fd;
-  //     rd.aio_nbytes = block_size;
-  //     rd.aio_offset = i * block_size;
-  //     off_t cnt_read = 0;
-  //     auto ret = aio_read(&rd);
-
-  //     if (ret < 0) {
-  //       perror("aio_read");
-  //       exit(1);
-  //     }
-
-  //     while (aio_error(&rd) == EINPROGRESS)
-  //       ;
-  //     ret = aio_return(&rd);
-  //   }
 
 #pragma omp parallel for num_threads(thread_num)
   for (int i = 0; i < thread_num; i++) {
