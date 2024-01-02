@@ -10,9 +10,13 @@ Test Disk IO Libraries:
 
 For AWS linux server:
 
-install liburing through https://github.com/axboe/liburing.
+Install liburing through https://github.com/axboe/liburing.
 
-install spdk through https://github.com/spdk/spdk.
+Install spdk through https://github.com/spdk/spdk.
+
+Follow the [user guide](https://docs.aws.amazon.com/zh_cn/AWSEC2/latest/UserGuide/ebs-using-volumes.html) to config your machine and mount your nvme device.
+
+Remember to check your nvme SSD device: sudo lsblk -f
 
 Build
 ```
@@ -26,15 +30,23 @@ make
 Generate data on disk:
 
 ```
-mkdir data
+mkdir /data
 cd build
-./gendata ../data/file_128MB.bin 128
-./gendata ../data/file_512MB.bin 512
-./gendata ../data/file_1GB.bin 1024
-stat ../data/file_128MB.bin
-stat ../data/file_512MB.bin
-stat ../data/file_1GB.bin
+./gendata /data/file_128MB.bin 128
+./gendata /data/file_512MB.bin 512
+./gendata /data/file_1GB.bin 1024
+stat /data/file_128MB.bin
+stat /data/file_512MB.bin
+stat /data/file_1GB.bin
 ```
+
+Use fio to test and verify your SSD bandwidth:
+```
+sudo apt install fio
+fio -ioengine=libaio -bs=64k -direct=1 -thread -numjobs=1 -rw=read -filename=/data/file_1GB.bin -name="BS 64KB read test" -iodepth=512 -runtime=20
+fio -ioengine=libaio -bs=64k -direct=1 -thread -numjobs=8 -rw=read -filename=/data/file_1GB.bin -name="BS 128KB read test" -iodepth=512 -runtime=20
+```
+The bandwidth should be 2000-3500 MB/s.
 
 Usage:
 ```
@@ -43,9 +55,9 @@ Usage: $ ./pread <file> <thread_num>
 
 Test pread:
 ```
-./pread ../data/file_128MB.bin 1 16
-./pread ../data/file_128MB.bin 4 16
-./pread ../data/file_128MB.bin 8 16
+./pread /data/file_128MB.bin 1 16
+./pread /data/file_128MB.bin 4 16
+./pread /data/file_128MB.bin 8 16
 ```
 
 Expect output:
@@ -57,8 +69,8 @@ Expect output:
 
 Test aio:
 ```
-./aio ../data/file_128MB.bin 1
-./aio ../data/file_128MB.bin 4
+./aio /data/file_128MB.bin 1
+./aio /data/file_128MB.bin 4
 ```
 
 Expect output:
@@ -70,8 +82,8 @@ Expect output:
 
 Test io_uring:
 ```
-./iouring ../data/file_128MB.bin 1
-./iouring ../data/file_128MB.bin 4
+./iouring /data/file_128MB.bin 1
+./iouring /data/file_128MB.bin 4
 ```
 
 Expect output:

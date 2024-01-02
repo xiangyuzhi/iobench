@@ -1,5 +1,13 @@
 #!/bin/bash
 
+fio -ioengine=libaio -bs=16k -direct=1 -thread -numjobs=8 -rw=read -filename=/data/file_1GB.bin -name="BS 16KB read test" -iodepth=512 -runtime=20
+
+fio -ioengine=libaio -bs=64k -direct=1 -thread -numjobs=1 -rw=read -filename=/data/file_1GB.bin -name="BS 64KB read test" -iodepth=512 -runtime=20
+
+fio -ioengine=libaio -bs=64k -direct=1 -thread -numjobs=8 -rw=read -filename=/data/file_1GB.bin -name="BS 128KB read test" -iodepth=512 -runtime=20
+
+
+
 # Sync lib
 # for lib in "pread";
 # do
@@ -45,14 +53,4 @@ do
   done
 done
 
-
-fio -ioengine=libaio -bs=4k -direct=1 -thread -numjobs=8 -rw=read -filename=/home/ubuntu/dgl/iobench/data/file_1GB.bin -name="BS 4KB read test" -iodepth=512 -runtime=60
-
-
-fio -ioengine=libaio -bs=16k -direct=1 -thread -numjobs=8 -rw=read -filename=/home/ubuntu/dgl/iobench/data/file_1GB.bin -name="BS 16KB read test" -iodepth=512
-
-
-fio -ioengine=libaio -bs=64k -direct=1 -thread -numjobs=8 -rw=read -filename=/home/ubuntu/dgl/iobench/data/file_1GB.bin -name="BS 16KB read test" -iodepth=512 -runtime=20
-
-fio -ioengine=libaio -bs=128k -direct=1 -thread -numjobs=8 -rw=read -filename=/home/ubuntu/dgl/iobench/data/file_1GB.bin -name="BS 16KB read test" -iodepth=512 -runtime=20
 
