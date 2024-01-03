@@ -60,7 +60,8 @@ $ ./<lib> <file> <is_random_read> <thread_num> <block size>
 
 Or run the script:
 ```bash
-bash ./test.sh
+bash ./pread_test.sh
+bash ./fio_test.sh
 ```
 
 

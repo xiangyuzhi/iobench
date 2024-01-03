@@ -25,7 +25,7 @@ void test_pread_seq(const std::string &file_path, int thread_num,
       reminder == 0 ? file_size : file_size - reminder + block_size;
   char *buf = (char *)aligned_alloc(block_size, buf_size);
   auto num_blocks = static_cast<int>((buf_size + block_size - 1) / block_size);
-  std::cout << block_size / 1024 << "KB " << std::endl;
+  // std::cout << block_size / 1024 << "KB " << std::endl;
 
   struct timespec start, end;
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -41,13 +41,13 @@ void test_pread_seq(const std::string &file_path, int thread_num,
 
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   auto duration = time_diff(&start, &end) / 1000000.0;
-  auto bandwidth = (buf_size / (1024.0 * 1024.0 * 1024.0)) / (duration / 1000);
+  uint64_t bandwidth = (buf_size / (1024 * 1024)) / (duration / 1000);
   uint64_t *array = (uint64_t *)buf;
   uint64_t sum = 0;
   for (int i = 0; i < buf_size / sizeof(uint64_t); ++i) {
     sum ^= array[i];
   }
-  printf("%lu, %.3fms, %.3fGB/s\n", sum, duration, bandwidth);
+  printf("%lu, %.3fms, %luMB/s\n", sum, duration, bandwidth);
   free(buf);
   close(fd);
 }
@@ -63,7 +63,7 @@ void test_pread_randread(const std::string &file_path, int thread_num,
   int num_read = 2000;
   size_t buf_size = block_size * num_read;
   char *buf = (char *)aligned_alloc(block_size, buf_size);
-  std::cout << block_size / 1024 << "KB " << std::endl;
+  // std::cout << block_size / 1024 << "KB " << std::endl;
   auto num_blocks = file_size / block_size;
   int offset[num_read];
   for (int i = 0; i < num_read; i++) {
@@ -83,13 +83,13 @@ void test_pread_randread(const std::string &file_path, int thread_num,
 
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   auto duration = time_diff(&start, &end) / 1000000.0;
-  auto bandwidth = (buf_size / (1024.0 * 1024.0 * 1024.0)) / (duration / 1000);
+  uint64_t bandwidth = (buf_size / (1024 * 1024)) / (duration / 1000);
   uint64_t *array = (uint64_t *)buf;
   uint64_t sum = 0;
   for (int i = 0; i < buf_size / sizeof(uint64_t); ++i) {
     sum ^= array[i];
   }
-  printf("%lu, %.3fms, %.3fGB/s\n", sum, duration, bandwidth);
+  printf("%lu, %.3fms, %luMB/s\n", sum, duration, bandwidth);
   free(buf);
   close(fd);
 }
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
 
   if (argc != 5) {
     std::cerr << "Usage: " << argv[0]
-              << "<is_random> <filename> <thread_num> <block_size KB>"
+              << "<filename> <is_random>  <thread_num> <block_size KB>"
               << std::endl;
   }
   const std::string filename = argv[1];
