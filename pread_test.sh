@@ -8,9 +8,9 @@ cd ..
 echo "Test pread library"
 for rw in 0 1;
 do
-  for thd in 1 4 8 16 32;
+  for block in 4 16 32 64 128 512;
   do
-    for block in 4 16 64 128 512;
+    for thd in 1 2 4 8 16 32;
     do
       s="./build/pread /data/file_1GB.bin ${rw} ${thd} ${block}"
       echo ${s}

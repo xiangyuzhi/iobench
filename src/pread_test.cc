@@ -12,6 +12,35 @@ uint64_t time_diff(struct timespec *start, struct timespec *end) {
          (end->tv_nsec - start->tv_nsec);
 }
 
+void test_pread_seq_full(const std::string &file_path, int thread_num,
+                         uint32_t block_size) {
+  std::ifstream is(file_path, std::ifstream::binary | std::ifstream::ate);
+  std::size_t file_size = is.tellg();
+  is.close();
+
+  int fd = open(file_path.c_str(), O_RDONLY | O_DIRECT);
+
+  char *buf = (char *)aligned_alloc(block_size, file_size);
+
+  struct timespec start, end;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  if (pread(fd, buf, file_size, 0) == -1) {
+    printf("error\n");
+  }
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  auto duration = time_diff(&start, &end) / 1000000.0;
+  uint64_t bandwidth = (file_size / (1024 * 1024)) / (duration / 1000);
+  uint64_t *array = (uint64_t *)buf;
+  uint64_t sum = 0;
+  for (int i = 0; i < file_size / sizeof(uint64_t); ++i) {
+    sum ^= array[i];
+  }
+  printf("%lu, %.3fms, %luMB/s\n", sum, duration, bandwidth);
+  free(buf);
+  close(fd);
+}
+
 void test_pread_seq(const std::string &file_path, int thread_num,
                     uint32_t block_size) {
   std::ifstream is(file_path, std::ifstream::binary | std::ifstream::ate);
@@ -108,6 +137,7 @@ int main(int argc, char *argv[]) {
   if (rand) {
     test_pread_randread(filename, t, block);
   } else {
-    test_pread_seq(filename, t, block);
+    test_pread_seq_full(filename, t, block);
+    // test_pread_seq(filename, t, block);
   }
 }

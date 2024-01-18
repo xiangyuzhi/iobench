@@ -36,7 +36,7 @@ make
 ```bash
 mkdir /data
 cd build
-./gendata /data/file_128MB.bin 128
+./gendata /home/ubuntu/dgl/dgl/datasets/file_128MB.bin 128
 ./gendata /data/file_512MB.bin 512
 ./gendata /data/file_1GB.bin 1024
 stat /data/file_128MB.bin
@@ -67,7 +67,7 @@ bash ./fio_test.sh
 
 ### Test pread:
 ```bash
-./pread /data/file_1GB.bin 0 1 16
+./pread /home/ubuntu/dgl/dgl/datasets/file_1GB.bin 0 1 16
 ./pread /data/file_1GB.bin 0 8 16
 ./pread /data/file_1GB.bin 0 8 64
 ./pread /data/file_1GB.bin 1 8 16
